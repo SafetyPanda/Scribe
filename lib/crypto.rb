@@ -11,7 +11,6 @@ module Crypto
   # Encrypts recieved line
   ##
   def self.encrypt_line(to_encrypt)
-    puts to_encrypt
     cipher = OpenSSL::Cipher.new('AES-256-CBC')
     cipher.encrypt
     cipher.key = get_password('Insert Encryption Password')
@@ -23,13 +22,16 @@ module Crypto
   # Decrypts Recieved Line
   ##
   def self.decrypt_line(encrypted_line, password)
-    puts encrypted_line
     decipher = OpenSSL::Cipher.new('AES-256-CBC')
     decipher.decrypt
     decipher.key = password
     decipher.iv = Base64.decode64('xZV1H8GvUiM/JbhErPijjg==')
-    plain_text =  decipher.update(encrypted_line)
-    puts plain_text
+    begin
+      decipher.update(encrypted_line) + decipher.final
+    rescue OpenSSL::Cipher::CipherError
+      puts 'ERROR: Decryption Fail! Incorrect Password!'.red.bold
+      exit(1)
+    end
   end
 
   ##

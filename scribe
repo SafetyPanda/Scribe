@@ -1,8 +1,7 @@
 #!/usr/bin/env ruby
+$LOAD_PATH.unshift "#{File.dirname(__FILE__)}/lib"
 
-#require 'openssl'
-#require 'io/console'
-require './crypto'
+require 'crypto.rb'
 require 'sqlite3'
 require 'open3'
 
@@ -14,7 +13,7 @@ class String
   def blink;          "\e[5m#{self}\e[25m" end
 end
 
-PASS_DIR = "#{ENV['HOME']}/.passman/".freeze
+PASS_DIR = "#{ENV['HOME']}/.scribe/".freeze
 
 ##
 # Check Operating System Info for OS Specific needs
@@ -56,10 +55,8 @@ end
 # Insert New Entry into Database
 ##
 def insert_into_db(site_name, username, password)
-
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
   vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
-  
   puts "Added #{site_name} information successfully!".green.bold
 end
 
@@ -69,8 +66,13 @@ end
 def query_db(query)
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
   vault.results_as_hash = true
-
-  results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
+  
+  if query == 'all'
+    results = vault.execute 'SELECT * from passwords'
+  else
+    results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
+  end
+    
   if results.empty?
     puts 'No Results Found!'.red.bold
   else
@@ -83,13 +85,14 @@ end
 ##
 def output_results(results)
   decrypted_password = Crypto::get_password('Enter Decryption Password')
-  puts decrypted_password
   results.each { |row|
-    puts "Site Name: #{row['site_name']}".green
+    plain_text_password = Crypto::decrypt_line(row['password'], decrypted_password)
+    puts "Site Name: #{row['site_name']}".green.bold
     puts "Username: #{row['username']}".green
-    puts "Password: #{Crypto::decrypt_line(row['password'], decrypted_password)}".green
-
-    # Remove string from memory
+    puts "Password: #{plain_text_password}".green
+    puts "Date Modified: #{row['date_modified']}".green
+    puts ''
+    plain_text_password.clear
   }
 end
 
