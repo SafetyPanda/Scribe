@@ -4,6 +4,7 @@ $LOAD_PATH.unshift "#{File.dirname(__FILE__)}/lib"
 require 'crypto.rb'
 require 'sqlite3'
 require 'open3'
+require 'csv'
 
 # Move to customize..
 class String
@@ -95,6 +96,15 @@ def output_results(results)
     plain_text_password.clear
   }
 end
+
+def import_passwords(file_location)
+  #CSV.foreach(file_location, headers: true) do |row| 
+  #  insert_into_db(row['site_name'], row'username'], row['password'])             SYNTAX ERROR...?
+  #end
+  #expected site,un,pw
+    
+end
+
 
 ##
 # Handle Arguments
