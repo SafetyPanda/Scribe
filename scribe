@@ -1,0 +1,120 @@
+#!/usr/bin/env ruby
+
+#require 'openssl'
+#require 'io/console'
+require './crypto'
+require 'sqlite3'
+require 'open3'
+
+# Move to customize..
+class String
+  def red;            "\e[31m#{self}\e[0m" end
+  def green;          "\e[32m#{self}\e[0m" end
+  def bold;           "\e[1m#{self}\e[22m" end
+  def blink;          "\e[5m#{self}\e[25m" end
+end
+
+PASS_DIR = "#{ENV['HOME']}/.passman/".freeze
+
+##
+# Check Operating System Info for OS Specific needs
+##
+def check_os
+  stdout = Open3.capture2('uname')
+
+  # Enable and Configure OpenBSD OS and Filesystem Protections
+  if stdout.include? 'OpenBSD'
+    require 'pledge'
+    require 'unveil'
+
+    Pledge.unveil("#{ENV['HOME']}/.passman/" => 'rwc')
+    Pledge.pledge('rpath wpath cpath') # Allow ONLY Read and Write Filesystem Access
+  end
+end
+
+##
+# Ensures folder and database has been created.
+##
+def start_up
+  if !File.directory?(PASS_DIR)
+    Dir.mkdir(PASS_DIR)
+    vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
+
+    # Set up Password Database
+    vault.execute <<-SQL
+      CREATE TABLE IF NOT EXISTS passwords(
+        site_name TEXT,
+        username TEXT,
+        password TEXT,
+        date_modified TEXT
+      );
+    SQL
+  end
+end
+
+##
+# Insert New Entry into Database
+##
+def insert_into_db(site_name, username, password)
+
+  vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
+  vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
+  
+  puts "Added #{site_name} information successfully!".green.bold
+end
+
+##
+# Query Database by Site Name
+##
+def query_db(query)
+  vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
+  vault.results_as_hash = true
+
+  results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
+  if results.empty?
+    puts 'No Results Found!'.red.bold
+  else
+    output_results(results)
+  end
+end
+
+##
+# Output Results from Query
+##
+def output_results(results)
+  decrypted_password = Crypto::get_password('Enter Decryption Password')
+  puts decrypted_password
+  results.each { |row|
+    puts "Site Name: #{row['site_name']}".green
+    puts "Username: #{row['username']}".green
+    puts "Password: #{Crypto::decrypt_line(row['password'], decrypted_password)}".green
+
+    # Remove string from memory
+  }
+end
+
+##
+# Handle Arguments
+##
+def decisions(arg_array)
+  case arg_array[0]
+  when 'get'
+    query_db(arg_array[1])
+  when 'add'
+    insert_into_db(arg_array[1], arg_array[2], arg_array[3])
+  when 'gen'
+    Crypto::gen_password(arg_array[1])
+  end
+end
+
+##
+# Main Function
+##
+def main
+  arg_array = ARGV
+  start_up
+
+  decisions(arg_array)
+end
+
+main
