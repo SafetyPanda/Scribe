@@ -132,6 +132,7 @@ end
 # Handle Arguments
 ##
 def decisions(arg_array)
+  # TODO add argument checking
   case arg_array[0]
   when 'get'
     query_db(arg_array[1])
@@ -143,7 +144,35 @@ def decisions(arg_array)
     export_passwords
   when 'gen'
     Crypto.gen_password(arg_array[1])
+  when 'help'
+    usage
+  when 'about'
+    about
+  else
+    puts 'ERROR: Not a command! Check out help: scribe help'.red.bold
   end
+end
+
+##
+# Usage
+##
+def usage
+  puts 'scribe [arg1 ... arg4]'
+  puts 'Args:'
+  puts 'add <site> <username> <password>      Add Site to Password Vault'
+  puts 'get <site_name>                       Get Site info from Password Vault'
+  puts 'import <file name>                    Import CSV file of passwords'
+  puts 'export                                Export CSV file of Password Vault'
+  puts 'help                                  Display this help'
+  puts 'about                                 Display about page'
+
+end
+
+
+def about
+  puts 'Scribe: A CLI Password Manager'.blue
+  puts 'Version 0.9'.blue
+  puts 'Written by James Gillman'.blue
 end
 
 ##
