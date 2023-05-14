@@ -1,18 +1,11 @@
 #!/usr/bin/env ruby
 $LOAD_PATH.unshift "#{File.dirname(__FILE__)}/lib"
 
-require 'crypto.rb'
+require 'crypto'
 require 'sqlite3'
 require 'open3'
 require 'csv'
-
-# Move to customize..
-class String
-  def red;            "\e[31m#{self}\e[0m" end
-  def green;          "\e[32m#{self}\e[0m" end
-  def bold;           "\e[1m#{self}\e[22m" end
-  def blink;          "\e[5m#{self}\e[25m" end
-end
+require 'customization'
 
 PASS_DIR = "#{ENV['HOME']}/.scribe/".freeze
 
@@ -20,15 +13,13 @@ PASS_DIR = "#{ENV['HOME']}/.scribe/".freeze
 # Check Operating System Info for OS Specific needs
 ##
 def check_os
-  stdout = Open3.capture2('uname')
-
-  # Enable and Configure OpenBSD OS and Filesystem Protections
-  if stdout.include? 'OpenBSD'
+  # Enable and Configure OpenBSD OS Allowed System Calls and Filesystem Protections
+  if RUBY_PLATFORM.include? 'openbsd'
     require 'pledge'
     require 'unveil'
 
-    Pledge.unveil("#{ENV['HOME']}/.passman/" => 'rwc')
-    Pledge.pledge('rpath wpath cpath') # Allow ONLY Read and Write Filesystem Access
+    Pledge.unveil("#{ENV['HOME']}" => 'rwc')
+    Pledge.pledge('rpath wpath cpath flock tty')
   end
 end
 
@@ -55,9 +46,14 @@ end
 ##
 # Insert New Entry into Database
 ##
-def insert_into_db(site_name, username, password)
+def insert_into_db(site_name, username, password, encryption_password)
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
-  vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
+  if encryption_password == "MANUAL"
+    vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
+  else
+    vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::auto_encrypt(password, encryption_password), Time.now.strftime('%m/%d/%Y')
+  end
+
   puts "Added #{site_name} information successfully!".green.bold
 end
 
@@ -67,13 +63,12 @@ end
 def query_db(query)
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
   vault.results_as_hash = true
-  
   if query == 'all'
     results = vault.execute 'SELECT * from passwords'
   else
     results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
   end
-    
+
   if results.empty?
     puts 'No Results Found!'.red.bold
   else
@@ -82,29 +77,56 @@ def query_db(query)
 end
 
 ##
+# Dumps DB for 
+##
+def export_passwords 
+  vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
+  vault.results_as_hash = true
+  results = vault.execute 'SELECT * from passwords'
+
+  if results.empty?
+    puts 'No Passwords to Export!'
+  else
+    decrypted_password = Crypto.get_password('Enter Decryption Password')
+    cur_time = Time.now.strftime('%m%d%y')
+    export_file_name = "#{ENV['HOME']}/Scribe_Password_#{cur_time}.csv"
+  
+    file = File.new(export_file_name, 'w')
+    file.puts('site_name,username,password')
+    results.each do |row|
+      plain_text_password = Crypto.decrypt_line(row['password'], decrypted_password)
+      file.puts("#{row['site_name']},#{row['username']},#{plain_text_password}")
+      plain_text_password.clear
+    end
+  end
+
+  puts "Exported! File is named: #{export_file_name}!".green.bold
+  puts 'Warning! Passwords are in PLAIN TEXT for Scribe Importation!'.red.bold
+end
+
+##
 # Output Results from Query
 ##
 def output_results(results)
-  decrypted_password = Crypto::get_password('Enter Decryption Password')
-  results.each { |row|
-    plain_text_password = Crypto::decrypt_line(row['password'], decrypted_password)
-    puts "Site Name: #{row['site_name']}".green.bold
+  decrypted_password = Crypto.get_password('Enter Decryption Password')
+  results.each do |row|
+    plain_text_password = Crypto.decrypt_line(row['password'], decrypted_password)
+    puts "Site Name: #{row['site_name']}".blue.bold
     puts "Username: #{row['username']}".green
     puts "Password: #{plain_text_password}".green
     puts "Date Modified: #{row['date_modified']}".green
     puts ''
     plain_text_password.clear
-  }
+  end
 end
 
 def import_passwords(file_location)
-  #CSV.foreach(file_location, headers: true) do |row| 
-  #  insert_into_db(row['site_name'], row'username'], row['password'])             SYNTAX ERROR...?
-  #end
-  #expected site,un,pw
-    
+  encryption_password = Crypto.get_password('Enter Password to Encrypt Imported Passwords')
+  CSV.foreach(file_location, headers: true) do |row|
+    insert_into_db(row['site_name'], row['username'], row['password'], encryption_password)
+  end
+  puts 'Importation Done!'.green.bold
 end
-
 
 ##
 # Handle Arguments
@@ -114,9 +136,13 @@ def decisions(arg_array)
   when 'get'
     query_db(arg_array[1])
   when 'add'
-    insert_into_db(arg_array[1], arg_array[2], arg_array[3])
+    insert_into_db(arg_array[1], arg_array[2], arg_array[3], 'MANUAL')
+  when 'import'
+    import_passwords(arg_array[1])
+  when 'export'
+    export_passwords
   when 'gen'
-    Crypto::gen_password(arg_array[1])
+    Crypto.gen_password(arg_array[1])
   end
 end
 
@@ -124,10 +150,14 @@ end
 # Main Function
 ##
 def main
+  check_os
   arg_array = ARGV
   start_up
-
   decisions(arg_array)
 end
 
-main
+begin
+  main
+rescue Interrupt
+  puts ''
+end

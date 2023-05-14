@@ -2,6 +2,7 @@ require 'base64'
 require 'securerandom'
 require 'openssl'
 require 'io/console'
+
 #
 # Crypto Module
 # Handle Encryption, Decryption, Password handling and generation
@@ -14,6 +15,17 @@ module Crypto
     cipher = OpenSSL::Cipher.new('AES-256-CBC')
     cipher.encrypt
     cipher.key = get_password('Insert Encryption Password')
+    cipher.iv = Base64.decode64('xZV1H8GvUiM/JbhErPijjg==')
+    encrypted = cipher.update(to_encrypt) + cipher.final
+  end
+
+  ##
+  # Encrypts Line, Password Pre Gathered
+  ##
+  def self.auto_encrypt(to_encrypt, password)
+    cipher = OpenSSL::Cipher.new('AES-256-CBC')
+    cipher.encrypt
+    cipher.key = password
     cipher.iv = Base64.decode64('xZV1H8GvUiM/JbhErPijjg==')
     encrypted = cipher.update(to_encrypt) + cipher.final
   end
@@ -37,14 +49,14 @@ module Crypto
   ##
   # Prompts user for Password, Doesn't echo.
   ##
-  def self.get_password(instruction)    
+  def self.get_password(instruction)
     cipher = OpenSSL::Cipher.new('AES-256-CBC')
-    puts "#{instruction}".bold.red
+    puts "#{instruction}".bold.cyan
 
     pwd = $stdin.noecho(&:gets).chomp
 
-    salt = Base64.decode64('CsIktLdJltDHkpK8ZAeIFA==') #To Be Changed
-    iter = 20000
+    salt = Base64.decode64('CsIktLdJltDHkpK8ZAeIFA==')
+    iter = 20_000
     key_len = cipher.key_len
     digest = OpenSSL::Digest.new('SHA256')
 
@@ -52,9 +64,10 @@ module Crypto
   end
 
   ##
-  # Generates Password based on user requirements
+  # Generates a Radom Base64 Password based on User Requested Length
   ##
-  def gen_password(length)
-    puts "password" 
+  def self.gen_password(length)
+    rand_password = SecureRandom.base64(3000)
+    puts rand_password[0, length.to_i]
   end
 end
