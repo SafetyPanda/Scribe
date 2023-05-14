@@ -78,6 +78,36 @@ def query_db(query)
 end
 
 ##
+# Query Database Automagically
+##
+def auto_query_db(query, password)
+  vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
+  vault.results_as_hash = true
+  
+  results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
+  if results.empty?
+    puts 'No Results Found!'
+  else
+    auto_output_results(results, password)
+  end
+end
+
+##
+# Output_Results SSH Edition
+##
+def auto_output_results(results, password)
+  results.each do |row|
+    plain_text_password = Crypto.auto_decrypt(row['password'], password)
+    puts "Site Name: #{row['site_name']}"
+    puts "Username: #{row['username']}"
+    puts "Password: #{plain_text_password}"
+    puts "Date Modified: #{row['date_modified']}"
+    puts ''
+    plain_text_password.clear
+  end
+end
+
+##
 # Dumps DB for 
 ##
 def export_passwords 
@@ -100,7 +130,6 @@ def export_passwords
       plain_text_password.clear
     end
   end
-
   puts "Exported! File is named: #{export_file_name}!".green.bold
   puts 'Warning! Passwords are in PLAIN TEXT for Scribe Importation!'.red.bold
 end
@@ -137,6 +166,8 @@ def decisions(arg_array)
   case arg_array[0]
   when 'get'
     query_db(arg_array[1])
+  when 'auto-get'
+	auto_query_db(arg_array[1], arg_array[2])
   when 'add'
     insert_into_db(arg_array[1], arg_array[2], arg_array[3], 'MANUAL')
   when 'import'
@@ -160,12 +191,13 @@ end
 def usage
   puts 'scribe [arg1 ... arg4]'
   puts 'Args:'
-  puts 'add <site> <username> <password>      Add Site to Password Vault'
-  puts 'get <site_name>                       Get Site info from Password Vault'
-  puts 'import <file name>                    Import CSV file of passwords'
-  puts 'export                                Export CSV file of Password Vault'
-  puts 'help                                  Display this help'
-  puts 'about                                 Display about page'
+  puts 'add <site> <username> <password>         Add Site to Password Vault'
+  puts 'auto-get <site> <encryption password>    For SSH commands. Not recommended.'
+  puts 'get <site_name>                          Get Site info from Password Vault'
+  puts 'import <file name>                       Import CSV file of passwords'
+  puts 'export                                   Export CSV file of Password Vault'
+  puts 'help                                     Display this help'
+  puts 'about                                    Display about page'
 
 end
 

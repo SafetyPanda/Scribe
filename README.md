@@ -11,12 +11,13 @@ A Simple to use CLI Password Manager written in Ruby. Passwords are encrypted in
 # Usage
 scribe [arg1 ... arg4]'
 Args:'
-add <site> <username> <password>      Add Site to Password Vault
-get <site_name>                       Get Site info from Password Vault
-import <file name>                    Import CSV file of passwords'
-export                                Export CSV file of Password Vault
-help                                  Display this help
-about                                 Display about page
+add <site> <username> <password>         Add Site to Password Vault
+get <site_name>                          Get Site info from Password Vault
+auto-get <site> <encryption password>    For SSH commands, not recommended for regular use.
+import <file name>                       Import CSV file of passwords'
+export                                   Export CSV file of Password Vault
+help                                     Display this help
+about                                    Display about page
 
 # Issues
 - On OpenBSD, SQLite will show encoding warnings, most likely due to Pledge, warnings are suppressed until tweaked.
