@@ -20,6 +20,7 @@ def check_os
 
     Pledge.unveil("#{ENV['HOME']}" => 'rwc')
     Pledge.pledge('rpath wpath cpath flock tty')
+    $VERBOSE = nil # Pledge causes weirdness with SQLite3 gem, workaround to surpress encoding warning: warning: failed to load encoding (utf-16le); use ascii-8bit instead
   end
 end
 
