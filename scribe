@@ -3,7 +3,6 @@ $LOAD_PATH.unshift "#{File.dirname(__FILE__)}/lib"
 
 require 'crypto'
 require 'sqlite3'
-require 'open3'
 require 'csv'
 require 'customization'
 
@@ -47,21 +46,38 @@ end
 ##
 # Insert New Entry into Database
 ##
-def insert_into_db(site_name, username, password, encryption_password)
+def insert_into_db(site_name, username, password)
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
-  if encryption_password == "MANUAL"
-    vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
-  else
-    vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::auto_encrypt(password, encryption_password), Time.now.strftime('%m/%d/%Y')
-  end
-
+  vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
   puts "Added #{site_name} information successfully!".green.bold
 end
+
+##
+# Delete Entry from Database.
+##
+def delete_from_db(query)
+  check_value(query, "Site")
+  
+  vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
+  vault.results_as_hash = true
+
+  results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
+  if results.empty?
+    puts 'No Results Found!'.red.bold
+  else
+    vault.execute 'DELETE FROM passwords WHERE site_name = ?', query
+    puts "Deleted #{query} successfully!"
+  end
+end
+
+# Modify Entry from Database
 
 ##
 # Query Database by Site Name
 ##
 def query_db(query)
+  check_value(query, "Site")
+
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
   vault.results_as_hash = true
   if query == 'all'
@@ -73,7 +89,7 @@ def query_db(query)
   if results.empty?
     puts 'No Results Found!'.red.bold
   else
-    output_results(results)
+    output_results(results);
   end
 end
 
@@ -81,6 +97,8 @@ end
 # Query Database Automagically
 ##
 def auto_query_db(query, password)
+  check_value(query, "Site")
+  
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
   vault.results_as_hash = true
   
@@ -108,7 +126,7 @@ def auto_output_results(results, password)
 end
 
 ##
-# Dumps DB for 
+# Exports Passwords into a CSV.
 ##
 def export_passwords 
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
@@ -150,7 +168,12 @@ def output_results(results)
   end
 end
 
+##
+# Import Passwords from CSV.
+##
 def import_passwords(file_location)
+  check_value(file_location, "File Location")
+
   encryption_password = Crypto.get_password('Enter Password to Encrypt Imported Passwords')
   CSV.foreach(file_location, headers: true) do |row|
     insert_into_db(row['site_name'], row['username'], row['password'], encryption_password)
@@ -162,14 +185,20 @@ end
 # Handle Arguments
 ##
 def decisions(arg_array)
-  # TODO add argument checking
   case arg_array[0]
   when 'get'
     query_db(arg_array[1])
   when 'auto-get'
-	auto_query_db(arg_array[1], arg_array[2])
+	  auto_query_db(arg_array[1], arg_array[2])
   when 'add'
-    insert_into_db(arg_array[1], arg_array[2], arg_array[3], 'MANUAL')
+    if(arg_array.length < 4)
+      puts "Error: Missing Information! Check out help: scribe help".red.bold
+      exit(1)
+    else
+      insert_into_db(arg_array[1], arg_array[2], arg_array[3])
+    end
+  when 'remove'
+    delete_from_db(arg_array[1])
   when 'import'
     import_passwords(arg_array[1])
   when 'export'
@@ -182,6 +211,18 @@ def decisions(arg_array)
     about
   else
     puts 'ERROR: Not a command! Check out help: scribe help'.red.bold
+    exit(1)
+  end
+end
+
+
+##
+# Checks Value for Nil, used for site names, file location.
+##
+def check_value(value, type)
+  if(value == nil)
+    puts "No #{type} Given!".red.bold
+    exit(1)
   end
 end
 
@@ -196,17 +237,21 @@ def usage
   puts 'get <site_name>                          Get Site info from Password Vault'
   puts 'import <file name>                       Import CSV file of passwords'
   puts 'export                                   Export CSV file of Password Vault'
+  puts 'gen <num of characters>                  Generates a SecureRandom Base64 Password. Default 15.'
   puts 'help                                     Display this help'
   puts 'about                                    Display about page'
 
 end
 
-
+##
+# About
+##
 def about
   puts 'Scribe: A CLI Password Manager'.blue
   puts 'Version 0.9'.blue
   puts 'Written by James Gillman'.blue
 end
+
 
 ##
 # Main Function
@@ -216,10 +261,7 @@ def main
   arg_array = ARGV
   start_up
   decisions(arg_array)
+  exit(0)
 end
 
-begin
-  main
-rescue Interrupt
-  puts ''
-end
+main

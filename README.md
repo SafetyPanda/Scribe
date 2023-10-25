@@ -3,7 +3,8 @@ A Simple to use CLI Password Manager written in Ruby. Passwords are encrypted in
 
 # Features
 - Add Passwords!
-- Import Passwords! 
+- Import Passwords!
+- Delete Passwords!
 - Export your passwords!
 - Search by Site name to get passwords!
 - Display when it was last modified!
@@ -16,6 +17,7 @@ get <site_name>                          Get Site info from Password Vault
 auto-get <site> <encryption password>    For SSH commands, not recommended for regular use.
 import <file name>                       Import CSV file of passwords'
 export                                   Export CSV file of Password Vault
+gen <num of characters>                  Generates a SecureRandom Base64 Password. Default 15.
 help                                     Display this help
 about                                    Display about page
 
@@ -23,9 +25,6 @@ about                                    Display about page
 - On OpenBSD, SQLite will show encoding warnings, most likely due to Pledge, warnings are suppressed until tweaked.
 
 # Things that's being worked (AKA, I am tired, I want to sleep..)
-- Adding more automation. That way it can be hosted on a server, and will grab it. Should be really easy.
 - Make it packaged.
-- Error handling.
-- Count arguments.
-- Make a vault for notes and files...?
+- Updating Site passwords
 - Sleeping.

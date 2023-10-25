@@ -90,10 +90,14 @@ module Crypto
   end
 
   ##
-  # Generates a Radom Base64 Password based on User Requested Length
+  # Generates a Random Base64 Password based on User Requested Length
   ##
   def self.gen_password(length)
     rand_password = SecureRandom.base64(3000)
-    puts rand_password[0, length.to_i]
+    if(length == nil)
+      puts rand_password[0, 15]
+    else
+      puts rand_password[0, length.to_i]
+    end
   end
 end
