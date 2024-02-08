@@ -12,7 +12,10 @@ A Simple to use CLI Password Manager written in Ruby. Passwords are encrypted in
 - Generate Base64 Passwords!
 
 # Usage
+Clone Repo and run `bundle install`.
+
 ![Usage](./images/usage.png)
+
 # Issues
 - On OpenBSD, SQLite will show encoding warnings, most likely due to Pledge, warnings are suppressed until tweaked.
 
