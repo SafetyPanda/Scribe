@@ -77,7 +77,7 @@ module Crypto
   ##
   def self.get_password(instruction)
     cipher = OpenSSL::Cipher.new('AES-256-CBC')
-    puts "#{instruction}".bold.cyan
+    puts "#{instruction}".bold.prompt
 
     pwd = $stdin.noecho(&:gets).chomp
 
@@ -97,7 +97,7 @@ module Crypto
     if(length == nil)
       puts rand_password[0, 15]
     else
-      puts rand_password[0, length.to_i]
+      puts rand_password[0, length.to_i].success
     end
   end
 end

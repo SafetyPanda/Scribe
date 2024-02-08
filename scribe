@@ -46,10 +46,19 @@ end
 ##
 # Insert New Entry into Database
 ##
-def insert_into_db(site_name, username, password)
+def insert_into_db(site_name, username, password, method)
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
-  vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
-  puts "Added #{site_name} information successfully!".green.bold
+  if method == 'args'  
+    vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
+    puts "Added #{site_name} information successfully!".success.bold
+  else
+    puts 'Enter Username:'.bold.prompt
+    username = $stdin.gets.chomp
+    puts 'Enter Password:'.bold.prompt
+    password = $stdin.noecho(&:gets).chomp
+    vault.execute 'INSERT INTO passwords (site_name, username, password, date_modified) VALUES (?, ?, ?, ?)', site_name, username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y')
+    puts "Added #{site_name} information successfully!".success.bold
+  end  
 end
 
 ##
@@ -63,14 +72,27 @@ def delete_from_db(query)
 
   results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
   if results.empty?
-    puts 'No Results Found!'.red.bold
+    puts 'No Results Found!'.error.bold
   else
     vault.execute 'DELETE FROM passwords WHERE site_name = ?', query
-    puts "Deleted #{query} successfully!"
+    puts "Deleted #{query} successfully!".success.bold
   end
 end
 
+##
 # Modify Entry from Database
+##
+def modify_password(site_name, username, password)
+  vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
+  
+  results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', site_name
+  if results.empty?
+    puts 'Site name does not exist!'.error.bold
+  else
+    vault.execute 'UPDATE passwords SET username = ?, password = ?, date_modified = ? WHERE site_name = ?', username, Crypto::encrypt_line(password), Time.now.strftime('%m/%d/%Y'), site_name
+    puts "Modified #{site_name} information successfully!".success.bold
+  end
+end
 
 ##
 # Query Database by Site Name
@@ -87,42 +109,19 @@ def query_db(query)
   end
 
   if results.empty?
-    puts 'No Results Found!'.red.bold
+    puts 'No Results Found!'.error.bold
   else
     output_results(results);
   end
 end
 
 ##
-# Query Database Automagically
+# Purge Database
 ##
-def auto_query_db(query, password)
-  check_value(query, "Site")
-  
+def purge_db
   vault = SQLite3::Database.open "#{PASS_DIR}/vault.db"
-  vault.results_as_hash = true
-  
-  results = vault.execute 'SELECT * FROM passwords WHERE site_name = ?', query
-  if results.empty?
-    puts 'No Results Found!'
-  else
-    auto_output_results(results, password)
-  end
-end
-
-##
-# Output_Results SSH Edition
-##
-def auto_output_results(results, password)
-  results.each do |row|
-    plain_text_password = Crypto.auto_decrypt(row['password'], password)
-    puts "Site Name: #{row['site_name']}"
-    puts "Username: #{row['username']}"
-    puts "Password: #{plain_text_password}"
-    puts "Date Modified: #{row['date_modified']}"
-    puts ''
-    plain_text_password.clear
-  end
+  vault.execute 'DELETE FROM passwords'
+  puts 'Deleted Password Vault!'.success.bold
 end
 
 ##
@@ -134,7 +133,7 @@ def export_passwords
   results = vault.execute 'SELECT * from passwords'
 
   if results.empty?
-    puts 'No Passwords to Export!'
+    puts 'No Passwords to Export!'.error.bold
   else
     decrypted_password = Crypto.get_password('Enter Decryption Password')
     cur_time = Time.now.strftime('%m%d%y')
@@ -148,8 +147,8 @@ def export_passwords
       plain_text_password.clear
     end
   end
-  puts "Exported! File is named: #{export_file_name}!".green.bold
-  puts 'Warning! Passwords are in PLAIN TEXT for Scribe Importation!'.red.bold
+  puts "Exported! File is named: #{export_file_name}!".success.bold
+  puts 'Warning! Passwords are in PLAIN TEXT for Scribe Importation!'.info.bold
 end
 
 ##
@@ -159,10 +158,10 @@ def output_results(results)
   decrypted_password = Crypto.get_password('Enter Decryption Password')
   results.each do |row|
     plain_text_password = Crypto.decrypt_line(row['password'], decrypted_password)
-    puts "Site Name: #{row['site_name']}".blue.bold
-    puts "Username: #{row['username']}".green
-    puts "Password: #{plain_text_password}".green
-    puts "Date Modified: #{row['date_modified']}".green
+    puts "Site Name: #{row['site_name']}".info.bold
+    puts "Username: #{row['username']}".success
+    puts "Password: #{plain_text_password}".success
+    puts "Date Modified: #{row['date_modified']}".success
     puts ''
     plain_text_password.clear
   end
@@ -178,7 +177,7 @@ def import_passwords(file_location)
   CSV.foreach(file_location, headers: true) do |row|
     insert_into_db(row['site_name'], row['username'], row['password'], encryption_password)
   end
-  puts 'Importation Done!'.green.bold
+  puts 'Importation Done!'.success.bold
 end
 
 ##
@@ -188,17 +187,16 @@ def decisions(arg_array)
   case arg_array[0]
   when 'get'
     query_db(arg_array[1])
-  when 'auto-get'
-	  auto_query_db(arg_array[1], arg_array[2])
   when 'add'
     if(arg_array.length < 4)
-      puts "Error: Missing Information! Check out help: scribe help".red.bold
-      exit(1)
+      insert_into_db(arg_array[1], arg_array[2], arg_array[3], 'manual')
     else
-      insert_into_db(arg_array[1], arg_array[2], arg_array[3])
+      insert_into_db(arg_array[1], arg_array[2], arg_array[3], 'args')
     end
   when 'remove'
     delete_from_db(arg_array[1])
+  when 'purge'
+    purge_db
   when 'import'
     import_passwords(arg_array[1])
   when 'export'
@@ -209,19 +207,20 @@ def decisions(arg_array)
     usage
   when 'about'
     about
+  when 'update'
+    modify_password(arg_array[1], arg_array[2], arg_array[3])
   else
-    puts 'ERROR: Not a command! Check out help: scribe help'.red.bold
+    puts 'ERROR: Not a command! Check out help: scribe help'.error.bold
     exit(1)
   end
 end
-
 
 ##
 # Checks Value for Nil, used for site names, file location.
 ##
 def check_value(value, type)
   if(value == nil)
-    puts "No #{type} Given!".red.bold
+    puts "No #{type} Given!".error.bold
     exit(1)
   end
 end
@@ -233,27 +232,26 @@ def usage
   puts 'scribe [arg1 ... arg4]'
   puts 'Args:'
   puts 'add <site> <username> <password>         Add Site to Password Vault'
-  puts 'auto-get <site> <encryption password>    For SSH commands. Not recommended.'
+  puts 'add <site>                               Same as above, but will prompt for username and password'
+  puts 'remove <site_name>                       Remove Site from Password Vault'
   puts 'get <site_name>                          Get Site info from Password Vault'
+  puts 'purge                                    Delete Password Vault'
   puts 'import <file name>                       Import CSV file of passwords'
   puts 'export                                   Export CSV file of Password Vault'
   puts 'gen <num of characters>                  Generates a SecureRandom Base64 Password. Default 15.'
   puts 'help                                     Display this help'
   puts 'about                                    Display about page'
-
 end
 
 ##
 # About
 ##
 def about
-  puts 'Scribe: A CLI Password Manager'.blue
-  puts 'Version 0.9'.blue
-  puts 'Written by James Gillman'.blue
+  puts 'Scribe: A CLI Password Manager'.info.bold
+  puts 'Version 1.0'.info
+  puts 'Written by James Gillman'.info
 end
 
-
-##
 # Main Function
 ##
 def main

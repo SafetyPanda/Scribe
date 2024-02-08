@@ -1,0 +1,5 @@
+# Ignore Ruby Gem stuff.
+Gemfile.lock
+
+# Ignore .swp files
+*.swp
