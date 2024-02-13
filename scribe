@@ -2,9 +2,11 @@
 $LOAD_PATH.unshift "#{File.dirname(__FILE__)}/lib"
 
 require 'crypto'
+require 'arcanum'
 require 'sqlite3'
 require 'csv'
 require 'customization'
+
 
 PASS_DIR = "#{ENV['HOME']}/.scribe/".freeze
 
@@ -209,6 +211,15 @@ def decisions(arg_array)
     about
   when 'update'
     modify_password(arg_array[1], arg_array[2], arg_array[3])
+  when 'create_arcanum'
+    Arcanum.mount_secure_folder("#{PASS_DIR}#{arg_array[1]}")
+  when 'mount_arcanum'
+    Arcanum.mount_secure_folder("#{PASS_DIR}#{arg_array[1]}")
+  when 'unmount_arcanum'
+    Arcanum.unmount_secure_folder("#{PASS_DIR}#{arg_array[1]}")
+  when 'destroy_arcanum'
+    Arcanum.destroy_arcanum("#{PASS_DIR}#{arg_array[1]}")
+    puts "Arcanum Destroyed!".success.bold
   else
     puts 'ERROR: Not a command! Check out help: scribe help'.error.bold
     exit(1)
@@ -239,6 +250,10 @@ def usage
   puts 'import <file name>                       Import CSV file of passwords'
   puts 'export                                   Export CSV file of Password Vault'
   puts 'gen <num of characters>                  Generates a SecureRandom Base64 Password. Default 15.'
+  puts 'create_arcanum <folder_name>             Create a CryFS encrypted Folder'
+  puts 'mount_arcanum <folder_name>              Mount encrypted Folder'
+  puts 'unmount_arcanum <folder_name>            Unmount encrypted Folder'
+  puts 'destroy_arcanum <folder_name>            Destroy encrypted Folder'
   puts 'help                                     Display this help'
   puts 'about                                    Display about page'
 end
@@ -248,7 +263,7 @@ end
 ##
 def about
   puts 'Scribe: A CLI Password Manager'.info.bold
-  puts 'Version 1.0'.info
+  puts 'Version 1.1'.info
   puts 'Written by James Gillman'.info
 end
 
