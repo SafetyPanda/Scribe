@@ -8,16 +8,25 @@ require 'open3'
 require 'fileutils'
 
 module Arcanum
+    ##
+    # Mounts/Creates (if not already created) a CryFS Folder
+    ##
     def self.mount_secure_folder(folder_path)
         cmd = 'cryfs ' + folder_path + ' ' + folder_path + '_arcanum'
         system(cmd)
     end
 
+    ##
+    # Unmounts folder
+    ##
     def self.unmount_secure_folder(folder_path)
         cmd = 'cryfs-unmount ' + folder_path + '_arcanum'
         system(cmd)
     end
 
+    ##
+    # Destroys folder
+    ##
     def self.destroy_arcanum(folder_path)
         #Ensure the Folder has been unmounted
         Arcanum.unmount_secure_folder(folder_path)
