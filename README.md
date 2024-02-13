@@ -1,5 +1,5 @@
 # Scribe
-A Simple to use CLI Password Manager written in Ruby. Passwords are encrypted in AES-256-CBC.
+A Simple to use CLI Password Manager written in Ruby. Passwords are encrypted in AES-256-CBC. It also can make CryFS encrypted folders!
 
 # Features
 - Add, Display and Modify Passwords!
@@ -10,6 +10,7 @@ A Simple to use CLI Password Manager written in Ruby. Passwords are encrypted in
 - Display when it was last modified!
 - Delete entire Password Vault!
 - Generate Base64 Passwords!
+- Make, Mount, and Destroy CryFS folders!
 
 # Usage
 Clone Repo and run `bundle install`.
